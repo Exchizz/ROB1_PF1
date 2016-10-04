@@ -116,9 +116,46 @@ int main(int argc, char** argv) {
         cout << "Notice: max time of " << MAXTIME << " seconds reached." << endl;
     }
 
+    ofstream myfile;
+    myfile.open ("run.lua");
+
+    myfile << "wc = rws.getRobWorkStudio():getWorkCell()" << endl;
+    myfile << "state = wc:getDefaultState()" << endl;
+    myfile << "device = wc:findDevice(\"KukaKr16\")" << endl;
+    myfile << "gripper = wc:findFrame(\"Tool\")" << endl;
+    myfile << "bottle = wc:findFrame(\"Bottle\")" << endl;
+    myfile << "table = wc:findFrame(\"Table\")" << endl;
+
+    myfile << "function setQ(q)" << endl;
+    myfile << "qq = rw.Q(#q,q[1],q[2],q[3],q[4],q[5],q[6])" << endl;
+    myfile << "device:setQ(qq,state)" << endl;
+    myfile << "rws.getRobWorkStudio():setState(state)" << endl;
+    myfile << "rw.sleep(0.1)" << endl;
+    myfile << "end" << endl;
+
+    myfile << "function attach(obj, tool)" << endl;
+    myfile << "rw.gripFrame(obj, tool, state)" << endl;
+    myfile << "rws.getRobWorkStudio():setState(state)" << endl;
+    myfile << "rw.sleep(0.1)" << endl;
+    myfile << "end" << endl;
+
+
+
+    stringstream ss;
+    string ssString;
+    int i = 0;
     for (QPath::iterator it = path.begin(); it < path.end(); it++) {
-        cout << *it << endl;
+	if(i++ == 1){
+		myfile << "attach(bottle,gripper)" << endl;
+	}
+
+	ss << *it;
+	ssString = ss.str();
+	ssString =  ssString.substr(4) ;
+	myfile << "setQ(" <<  ssString << ")" << endl;
+	ss.str("");
     }
+    myfile << "attach(bottle,gripper)" << endl;
 
     cout << "Program done." << endl;
     return 0;
