@@ -50,20 +50,39 @@ int main(int argc, char** argv) {
         return 0;
     }
     State state = wc->getDefaultState();
- 
+
+
+
+    Q from(6,-3.142,-0.827,-3.002,-3.143,0.099,-1.573);
+    Q to(6,1.571,0.006,0.030,0.153,0.762,4.490);
+
+    device->setQ(from,state);
+
+    Frame* BottleFrame = wc->findFrame("Bottle");
+    Frame* ToolFrame = wc->findFrame("Tool");
+
+
+    if (ToolFrame == NULL) {
+        cerr << "Device: \"Tool\" not found!" << endl;
+        return 0;
+    }
+
+    if (BottleFrame == NULL) {
+        cerr << "Device: \"Bottle\" not found!" << endl;
+        return 0;
+    }
+
+
+    Kinematics::gripFrame(BottleFrame, ToolFrame, state);
+
     CollisionDetector detector(wc, ProximityStrategyFactory::makeDefaultCollisionStrategy());
     PlannerConstraint constraint = PlannerConstraint::make(&detector,device,state);
- 
+
     /** Most easy way: uses default parameters based on given device
         sampler: QSampler::makeUniform(device)
         metric: PlannerUtil::normalizingInfinityMetric(device->getBounds())
         extend: 0.05 */
     //QToQPlanner::Ptr planner = RRTPlanner::makeQToQPlanner(constraint, device, RRTPlanner::RRTConnect);
- 
-    Frame* BottleFrame = wc->findFrame("Bottle");
-    Frame* ToolFrame = wc->findFrame("Tool");
-
-    Kinematics::gripFrame(BottleFrame, ToolFrame, state);
 
 
 
@@ -78,10 +97,8 @@ int main(int argc, char** argv) {
     //Q to(6,1.4,-1.3,1.5,0.3,1.3,1.6);
     //q_pick = (-3.142,-0.827,-3.002,-3.143,0.099,-1.573) [rad]
     //q_place = (1.571,0.006,0.030,0.153,0.762,4.490) [rad]
-
-    Q from(6,-3.142,-0.827,-3.002,-3.143,0.099,-1.573);
     //Q to(6,1.7,0.6,-0.8,0.3,0.7,-0.5); // Very difficult for planner
-    Q to(6,1.571,0.006,0.030,0.153,0.762,4.490);
+
 
 
     if (!checkCollisions(device, state, detector, from))
