@@ -3,6 +3,7 @@
 #include <rwlibs/pathplanners/rrt/RRTPlanner.hpp>
 #include <rwlibs/pathplanners/rrt/RRTQToQPlanner.hpp>
 #include <rwlibs/proximitystrategies/ProximityStrategyFactory.hpp>
+#include <rw/pathplanning/PathAnalyzer.hpp>
 
 using namespace std;
 using namespace rw::common;
@@ -39,7 +40,8 @@ bool checkCollisions(Device::Ptr device, const State &state, const CollisionDete
 }
 
 int main(int argc, char** argv) {
-    const string wcFile = "/home/exchizz/SDU/Skole/7.Semester/ROVI/Robots/PF1/Kr16WallWorkCell/Scene.wc.xml";
+    //const string wcFile = "/home/exchizz/SDU/Skole/7.Semester/ROVI/Robots/PF1/Kr16WallWorkCell/Scene.wc.xml";
+    const string wcFile = "/media/sf_VM-share/Kr16WallWorkCell/Scene.wc.xml";
     const string deviceName = "KukaKr16";
     cout << "Trying to use workcell " << wcFile << " and device " << deviceName << endl;
 
@@ -93,7 +95,9 @@ int main(int argc, char** argv) {
     if (!checkCollisions(device, state, detector, to))
         return 0;
 
+    // Prepare stuff for path length
     PathAnalyzer path_analyser(device,state);
+    PathAnalyzer::CartesianAnalysis path_length;
 
     cout << "Planning from " << from << " to " << to << endl;
     QPath path;
@@ -106,7 +110,11 @@ int main(int argc, char** argv) {
         cout << "Notice: max time of " << MAXTIME << " seconds reached." << endl;
     }
 
-    cout << "Path length is: " << path_analyser.analyzeCartesian(path,device) << endl;
+    // Calc the path length
+    path_length = path_analyser.analyzeCartesian(path,ToolFrame);
+    double total_path_length = path_length.length;
+
+    cout << "Path length is: " << total_path_length << endl;
 
     for (QPath::iterator it = path.begin(); it < path.end(); it++) {
         cout << *it << endl;
