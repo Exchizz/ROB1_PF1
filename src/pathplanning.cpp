@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip> // std::setprecision
 #include <rw/rw.hpp>
 #include <rwlibs/pathplanners/rrt/RRTPlanner.hpp>
 #include <rwlibs/pathplanners/rrt/RRTQToQPlanner.hpp>
@@ -17,7 +18,10 @@ using namespace rw::trajectory;
 using namespace rwlibs::pathplanners;
 using namespace rwlibs::proximitystrategies;
 
-#define MAXTIME 10.
+#define MAXTIME 120.
+
+const bool debug    = false;
+const bool saveLua  = false;
 
 bool checkCollisions(Device::Ptr device, const State &state, const CollisionDetector &detector, const Q &q) {
     State testState;
@@ -40,8 +44,9 @@ bool checkCollisions(Device::Ptr device, const State &state, const CollisionDete
 }
 
 int main(int argc, char** argv) {
-    const string wcFile = "/home/exchizz/SDU/Skole/7.Semester/ROVI/Robots/PF1/Kr16WallWorkCell/Scene.wc.xml";
-//    const string wcFile = "/media/sf_VM-share/Kr16WallWorkCell/Scene.wc.xml";
+    //const string wcFile = "/home/exchizz/SDU/Skole/7.Semester/ROVI/Robots/PF1/Kr16WallWorkCell/Scene.wc.xml"; // Nerup WorkCell location
+    //const string wcFile = "/media/sf_VM-share/Kr16WallWorkCell/Scene.wc.xml"; // Lundby WorkCell location
+    const string wcFile = "../Kr16WallWorkCell/Scene.wc.xml"; // Relative path
     const string deviceName = "KukaKr16";
     cout << "Trying to use workcell " << wcFile << " and device " << deviceName << endl;
 
@@ -85,80 +90,93 @@ int main(int argc, char** argv) {
         extend: 0.05 */
     //QToQPlanner::Ptr planner = RRTPlanner::makeQToQPlanner(constraint, device, RRTPlanner::RRTConnect);
 
-
-
     /** More complex way: allows more detailed definition of parameters and methods */
-    QSampler::Ptr sampler = QSampler::makeConstrained(QSampler::makeUniform(device),constraint.getQConstraintPtr());
-    QMetric::Ptr metric = MetricFactory::makeEuclidean<Q>();
-    double extend = 0.1;
-    QToQPlanner::Ptr planner = RRTPlanner::makeQToQPlanner(constraint, sampler, metric, extend, RRTPlanner::RRTConnect);
-    if (!checkCollisions(device, state, detector, from))
-        return 0;
-    if (!checkCollisions(device, state, detector, to))
-        return 0;
 
-    // Prepare stuff for path length
-    PathAnalyzer path_analyser(device,state);
-    PathAnalyzer::CartesianAnalysis path_length;
+    ofstream data;
+    data.open ("data.csv");
+    data << "extend,i,time,steps,path_length\n";
 
-    cout << "Planning from " << from << " to " << to << endl;
-    QPath path;
-    Timer t;
-    t.resetAndResume();
-    planner->query(from,to,path,MAXTIME);
-    t.pause();
-    cout << "Path of length " << path.size() << " found in " << t.getTime() << " seconds." << endl;
-    if (t.getTime() >= MAXTIME) {
-        cout << "Notice: max time of " << MAXTIME << " seconds reached." << endl;
+    for (double extend = 0.005; extend <= 1.005; extend+=0.005) { // epsilon range
+        for (size_t h = 0; h < 100; h++) { // Samples per epsilon
+            QSampler::Ptr sampler = QSampler::makeConstrained(QSampler::makeUniform(device),constraint.getQConstraintPtr());
+            QMetric::Ptr metric = MetricFactory::makeEuclidean<Q>();
+            //double extend = 0.1;
+            QToQPlanner::Ptr planner = RRTPlanner::makeQToQPlanner(constraint, sampler, metric, extend, RRTPlanner::RRTConnect);
+            if (!checkCollisions(device, state, detector, from))
+                return 0;
+            if (!checkCollisions(device, state, detector, to))
+                return 0;
+
+            // Prepare stuff for path length
+            PathAnalyzer path_analyser(device,state);
+            PathAnalyzer::CartesianAnalysis path_length;
+
+            if (debug)
+                cout << "Planning from " << from << " to " << to << endl;
+            QPath path;
+            Timer t;
+            t.resetAndResume();
+            planner->query(from,to,path,MAXTIME);
+            t.pause();
+            if (debug)
+                cout << "Path of length " << path.size() << " found in " << t.getTime() << " seconds." << endl;
+            if (t.getTime() >= MAXTIME) {
+                if (debug)
+                    cout << "Notice: max time of " << MAXTIME << " seconds reached." << endl;
+            }
+            // Calc the path length
+            path_length = path_analyser.analyzeCartesian(path,ToolFrame);
+            double total_path_length = path_length.length;
+            if (debug)
+                cout << "Path length is: " << total_path_length << endl;
+
+            data << setprecision(8) << extend << "," << h << "," << t.getTime() << "," << path.size() << "," << total_path_length << "\n";
+            // Saving path in LUA format for the RobWork simulator
+            if (saveLua) {
+                ofstream myfile;
+                myfile.open ("run.lua");
+
+                myfile << "wc = rws.getRobWorkStudio():getWorkCell()" << endl;
+                myfile << "state = wc:getDefaultState()" << endl;
+                myfile << "device = wc:findDevice(\"KukaKr16\")" << endl;
+                myfile << "gripper = wc:findFrame(\"Tool\")" << endl;
+                myfile << "bottle = wc:findFrame(\"Bottle\")" << endl;
+                myfile << "table = wc:findFrame(\"Table\")" << endl;
+
+                myfile << "function setQ(q)" << endl;
+                myfile << "qq = rw.Q(#q,q[1],q[2],q[3],q[4],q[5],q[6])" << endl;
+                myfile << "device:setQ(qq,state)" << endl;
+                myfile << "rws.getRobWorkStudio():setState(state)" << endl;
+                myfile << "rw.sleep(0.1)" << endl;
+                myfile << "end" << endl;
+
+                myfile << "function attach(obj, tool)" << endl;
+                myfile << "rw.gripFrame(obj, tool, state)" << endl;
+                myfile << "rws.getRobWorkStudio():setState(state)" << endl;
+                myfile << "rw.sleep(0.1)" << endl;
+                myfile << "end" << endl;
+
+                stringstream ss;
+                string ssString;
+                int i = 0;
+
+                for (QPath::iterator it = path.begin(); it < path.end(); it++) {
+                    if(i++ == 1)
+                        myfile << "attach(bottle,gripper)" << endl;
+
+                    ss << *it;
+                    ssString = ss.str();
+                    ssString =  ssString.substr(4) ;
+                    myfile << "setQ(" <<  ssString << ")" << endl;
+                    ss.str("");
+                }
+                myfile << "attach(bottle,table)" << endl;
+            }
+        }
     }
+    data.close();
 
-    ofstream myfile;
-    myfile.open ("run.lua");
-
-    myfile << "wc = rws.getRobWorkStudio():getWorkCell()" << endl;
-    myfile << "state = wc:getDefaultState()" << endl;
-    myfile << "device = wc:findDevice(\"KukaKr16\")" << endl;
-    myfile << "gripper = wc:findFrame(\"Tool\")" << endl;
-    myfile << "bottle = wc:findFrame(\"Bottle\")" << endl;
-    myfile << "table = wc:findFrame(\"Table\")" << endl;
-
-    myfile << "function setQ(q)" << endl;
-    myfile << "qq = rw.Q(#q,q[1],q[2],q[3],q[4],q[5],q[6])" << endl;
-    myfile << "device:setQ(qq,state)" << endl;
-    myfile << "rws.getRobWorkStudio():setState(state)" << endl;
-    myfile << "rw.sleep(0.1)" << endl;
-    myfile << "end" << endl;
-
-    myfile << "function attach(obj, tool)" << endl;
-    myfile << "rw.gripFrame(obj, tool, state)" << endl;
-    myfile << "rws.getRobWorkStudio():setState(state)" << endl;
-    myfile << "rw.sleep(0.1)" << endl;
-    myfile << "end" << endl;
-
-
-
-    stringstream ss;
-    string ssString;
-    int i = 0;
-    // Calc the path length
-    path_length = path_analyser.analyzeCartesian(path,ToolFrame);
-    double total_path_length = path_length.length;
-
-    cout << "Path length is: " << total_path_length << endl;
-
-    for (QPath::iterator it = path.begin(); it < path.end(); it++) {
-	if(i++ == 1){
-		myfile << "attach(bottle,gripper)" << endl;
-	}
-
-	ss << *it;
-	ssString = ss.str();
-	ssString =  ssString.substr(4) ;
-	myfile << "setQ(" <<  ssString << ")" << endl;
-	ss.str("");
-    }
-    myfile << "attach(bottle,gripper)" << endl;
-
-    cout << "Program done." << endl;
+    if (debug)
+        cout << "Program done." << endl;
     return 0;
 }
