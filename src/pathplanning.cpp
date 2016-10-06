@@ -92,12 +92,16 @@ int main(int argc, char** argv) {
 
     /** More complex way: allows more detailed definition of parameters and methods */
 
-    ofstream data;
-    data.open ("data.csv");
-    data << "extend,i,time,steps,path_length\n";
+    int iteration_ctr = 0;
 
     for (double extend = 0.005; extend <= 1.005; extend+=0.005) { // epsilon range
+        ofstream data;
+        data.open ("data" + to_string(iteration_ctr) + ".csv");
+        data << "extend,i,time,steps,path_length\n";
+        cout << "Epsilon = " << extend << endl;
         for (size_t h = 0; h < 100; h++) { // Samples per epsilon
+            // if (h%10 == 0)
+                cout << "Iteration = " << h << endl;
             QSampler::Ptr sampler = QSampler::makeConstrained(QSampler::makeUniform(device),constraint.getQConstraintPtr());
             QMetric::Ptr metric = MetricFactory::makeEuclidean<Q>();
             //double extend = 0.1;
@@ -173,8 +177,10 @@ int main(int argc, char** argv) {
                 myfile << "attach(bottle,table)" << endl;
             }
         }
+        data.close();
+        iteration_ctr++;
     }
-    data.close();
+
 
     if (debug)
         cout << "Program done." << endl;
