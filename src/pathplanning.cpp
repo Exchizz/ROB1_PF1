@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
     for (double extend = 0.005*(iteration_ctr+1); extend <= 6.005; extend+=0.005) { // epsilon range
         ofstream data;
         data.open ("data" + to_string(iteration_ctr) + ".csv");
-        data << "extend,i,time,steps,path_length\n";
+        data << "extend,i,time,steps,tool_path_length,joint_movement\n";
         cout << "Epsilon = " << extend << endl;
         for (size_t h = 0; h < 100; h++) { // Samples per epsilon
             // if (h%10 == 0)
@@ -111,9 +111,12 @@ int main(int argc, char** argv) {
             if (!checkCollisions(device, state, detector, to))
                 return 0;
 
-            // Prepare stuff for path length
+            // Prepare stuff for tool path length and joint space configuration
+            // See RobWork class API for PathAnalyzer for further documentation
             PathAnalyzer path_analyser(device,state);
-            PathAnalyzer::CartesianAnalysis path_length;
+            PathAnalyzer::CartesianAnalysis tool_path_length;
+            PathAnalyzer::JointSpaceAnalysis joint_movement;
+            QMetric::Ptr joint_metric = MetricFactory::makeManhattan<Q>();
 
             if (debug)
                 cout << "Planning from " << from << " to " << to << endl;
@@ -128,13 +131,17 @@ int main(int argc, char** argv) {
                 if (debug)
                     cout << "Notice: max time of " << MAXTIME << " seconds reached." << endl;
             }
-            // Calc the path length
-            path_length = path_analyser.analyzeCartesian(path,ToolFrame);
-            double total_path_length = path_length.length;
-            if (debug)
-                cout << "Path length is: " << total_path_length << endl;
 
-            data << setprecision(8) << extend << "," << h << "," << t.getTime() << "," << path.size() << "," << total_path_length << "\n";
+            // Calc elements of PathAnalyzer
+            tool_path_length = path_analyser.analyzeCartesian(path,ToolFrame);
+            double total_tool_path_length = tool_path_length.length;
+            joint_movement = path_analyser.analyzeJointSpace(path,joint_metric);
+            double total_joint_movement = joint_movement.length;
+
+            if (debug)
+                cout << "Path length is: " << total_tool_path_length << endl;
+
+            data << setprecision(8) << extend << "," << h << "," << t.getTime() << "," << path.size() << "," << total_tool_path_length << "," << total_joint_movement << "\n";
             // Saving path in LUA format for the RobWork simulator
             if (saveLua) {
                 ofstream myfile;
