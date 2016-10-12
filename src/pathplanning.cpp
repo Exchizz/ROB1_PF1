@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
 
     int iteration_ctr = 0;
 
-    for (double extend = 0.005*(iteration_ctr+1); extend <= 6.005; extend+=0.005) { // epsilon range
+    for (double extend = 0.005*(iteration_ctr+1); extend <= 6.283; extend+=0.005) { // epsilon range
         ofstream data;
         data.open ("data" + to_string(iteration_ctr) + ".csv");
         data << "extend,i,time,steps,tool_path_length,joint_movement\n";
