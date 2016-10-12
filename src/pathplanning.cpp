@@ -134,6 +134,19 @@ int main(int argc, char** argv) {
             if (debug)
                 cout << "Path length is: " << total_path_length << endl;
 
+
+
+	    // Zum'a dat' nizzle shizzle
+	    double sum = 0;
+	    for (QPath::iterator it = path.begin(); it < path.end()-1; it++) {
+		Q diff = *(it+1) - *it;
+		sum += diff.norm2();
+	    }
+
+
+	    cout << "Sum : " <<  sum << std::endl;
+	    // Zum'a dat' nizzle shizzle - end
+
             data << setprecision(8) << extend << "," << h << "," << t.getTime() << "," << path.size() << "," << total_path_length << "\n";
             // Saving path in LUA format for the RobWork simulator
             if (saveLua) {
