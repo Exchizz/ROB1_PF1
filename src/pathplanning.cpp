@@ -92,9 +92,9 @@ int main(int argc, char** argv) {
 
     /** More complex way: allows more detailed definition of parameters and methods */
 
-    int iteration_ctr = 0;
+    int iteration_ctr = 600;
 
-    for (double extend = 0.005; extend <= 1.005; extend+=0.005) { // epsilon range
+    for (double extend = 0.005*(iteration_ctr+1); extend <= 6.005; extend+=0.005) { // epsilon range
         ofstream data;
         data.open ("data" + to_string(iteration_ctr) + ".csv");
         data << "extend,i,time,steps,path_length\n";
